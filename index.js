@@ -3,9 +3,9 @@ var Path = require('path');
 var QS = require('querystring');
 var Fs = require('fs');
 var view = require('liteview');
-
+var Log = require('./log');
 // global Log
-Log = require('./log');
+log = Log.create({info:true},{});
 
 /***********************
   extends http.response 
@@ -25,7 +25,7 @@ HTTP.ServerResponse.prototype.render = function(tpl,object){
 HTTP.ServerResponse.prototype.json = function(object){
   this.end(JSON.stringify(object));
 };
-HTTP.ServerResponse.prototype.jsonp = function(object,vars){
+HTTP.ServerResponse.prototype.jsonp = function(vars,object){
   this.end(vars+'('+JSON.stringify(object)+');');
 };
 /***********************
@@ -49,13 +49,12 @@ HTTP.IncomingMessage.prototype.getCookie = function(){
 HTTP.IncomingMessage.prototype.getPost = function(cb){
   var len = this.headers['content-length'];
   if(len === undefined){
-    throw new Error('do not support post in chunk');
+    log.error('req.getPost()  do not support post in chunk!');
     return;
   }
   var post_buf = new Buffer(parseInt(len));
   var offset = 0;
   this.on('data',function(chunk){
-    console.log(chunk.toString());
     chunk.copy(post_buf,offset,0,chunk.length);
     offset += chunk.length;
   });
@@ -70,7 +69,7 @@ HTTP.IncomingMessage.prototype.getPost = function(cb){
   });
 };
 /** TODO **/
-HTTP.IncomingMessage.prototype.getMultiPost = function(){
+HTTP.IncomingMessage.prototype.getMultiPartPost = function(){
 
 };
 /** TODO **/
@@ -92,23 +91,31 @@ function Server(cfg){
   this.root = cfg.root;
   this.routermap = null;
   this.serv = null;
+  if(cfg.tpl){
+    view.init(cfg.tpl);
+  }else{
+    view.render = function(){return 'view is not inited ! please re-config the server .'};
+  }
 }
 Server.prototype = {
   view:function(cfg){
-    if(cfg.view){
-      if(cfg.view.constructor == Function && cfg.view.render && cfg.view.render.length == 2)
-        view = cfg.view;
-      else
-        throw new Error('view config error!!!');
-    }else{
-      view.init(cfg.base,cfg.const ? cfg.const : {});
+    if(cfg.tpl){
+      view.init(cfg.tpl);
+    }
+    if(cfg.debug){
       view.debug(cfg.debug);
+    }
+    if(cfg.const){
+      view.const(cfg.const);
     }
     return this;
   },
   /** 更换 veiw 引擎 **/
   serView:function(v){
-    view = v
+    if(!v.render || v.render.length < 2){
+      throw new Error('setView(v), view must implement view.render(tpl,obj)!');
+    }
+    view = v;
   },
   /**
     init router info
@@ -119,7 +126,7 @@ Server.prototype = {
       n = i;
       // router path must start with /
       if(n.indexOf('/') !== 0){
-        console.err("router must start with /");
+        throw new Error("[config error] router must start with /");
       }
       // remove end / from router path
       if(n.match(/\/$/)) n = n.replace(/\/$/,''); 
@@ -197,7 +204,7 @@ function createServerHandler(router,config){
 }
 
 exports.createServer = function(cfg){
-  Log = Log.create(cfg.loglevel,cfg);
+  log = Log.create(cfg.loglevel ? cfg.loglevel : {},cfg);
   return new Server(cfg);
 };
 exports.Server = Server;

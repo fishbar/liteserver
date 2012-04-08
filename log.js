@@ -84,7 +84,7 @@ function Log(level, options) {
     })
   }else{
     this.streamErr = process.stderr;
-    this.streamInfo = process.stdout
+    this.streamInfo = process.stdout;
   }
 }
 
