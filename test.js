@@ -38,7 +38,6 @@ describe('test log',function(){
 
     it('test inner function',function(){
       expect(Log._test('fixZero',[9])).to.be('09');
-
     });
   });
 });
