@@ -35,12 +35,15 @@ HTTP.IncomingMessage.prototype.getRouter = function(){
   var query = this.__querypath;
   if(query.action) return query;
   var arr = query.split('/');
-  var action = arr[0];
+  var ctrl = arr[0];
+  var action = arr[1];
+  arr.shift();
   arr.shift();
   this.__querypath = {
+    controller: ctrl,
     action : action,
     param : arr
-  }
+  };
   return this.__querypath;
 };
 HTTP.IncomingMessage.prototype.getCookie = function(){
@@ -195,7 +198,7 @@ function createServerHandler(router,config){
     }
     for(var i in router){
       if(router[i][0].test(url)){
-        req.__querypath = url.substr(i.length+1);
+        req.__querypath = url;
         router[i][1](req,res,config);
         break;
       }
