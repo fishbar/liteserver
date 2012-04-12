@@ -91,4 +91,15 @@
     res.redirect(path)      // path == string 为 302 ， path为router对象，则直接在服务器端跳转至相应的controller.action
     res.json(obj)           // json输出，注意这里直接 res.end()了，不能再继续http输出
     res.jsonp(cb,obj)       // jsonp格式输出，注意这里直接res.end()了，不能再有http输出
+
+## log日志系统
+    
+    require('liteserver') 之后，模块会注入一个全局的log对象，这个对象可以在任何地方调用
+    log对象包含以下方法：
+        log.debug(msg)
+        log.trace(msg)
+        log.info(msg)
+        log.warn(msg)
+        log.error(msg)
+    config中设置了log文件之后，log将被写入到指定文件，否则，log将会直接输出到stdout|stderror
     
