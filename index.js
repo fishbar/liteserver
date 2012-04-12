@@ -133,23 +133,46 @@ Server.prototype = {
   },
   /**
     init router info
+    router has two type
+      path match : start with / , like : /test
+      name match : start without /  , like : 404
     **/
   router:function(obj){
     var n = null;
+    var matches = {}; // match router
+    var named = {}; // named router
     for(var i in obj){
       n = i;
       // router path must start with /
       if(n.indexOf('/') !== 0){
-        throw new Error("[config error] router must start with /");
+        named[i] = obj[i];
+        continue;
+        //throw new Error("[config error] router must start with /");
       }
       // remove end / from router path
       if(n.match(/\/$/)) n = n.replace(/\/$/,''); 
-      obj[i] = [
+      matches[i] = [
         n ? new RegExp('^'+n+'\\b') : /^\/$/,
         obj[i]
       ];
     }
-    this.routermap = obj;
+    // add error page default
+    if(!named['404']){
+      named['404'] = function(req,res,cfg){
+        res.status = 404;
+        res.end('<h2>404,Page not found!</h2>');
+      };
+    }
+    if(!named['500']){
+      named['500'] = function(req,res,cfg){
+        res.status = 500;
+        res.end('<h2>500,Server error!</h2>');
+      }
+    }
+    this.routermap = {
+      matches:matches,
+      named:named
+    };
     return this;
   },
   /**
@@ -197,9 +220,12 @@ Server.prototype = {
 
 function createServerHandler(router,config){
   config = config ? config : {};
+  var matches = router.matches;
+  var named = router.named;
   return function(req,res){
     var url = req.url,
       hasQuery,
+      flag = false,
       res_header = {'x-power' : 'liteserver(node.js)'};
     // remove query string
     hasQuery = url.indexOf('?'); 
@@ -207,12 +233,17 @@ function createServerHandler(router,config){
       req.__querystr = url.substr(hasQuery+1);
       url = url.substr(0,hasQuery);
     }
-    for(var i in router){
-      if(router[i][0].test(url)){
+    for(var i in matches){
+      if(matches[i][0].test(url)){
         req.__querypath = url;
-        router[i][1](req,res,config);
+        matches[i][1](req,res,config);
+        flag = true;
         break;
       }
+    }
+    // not found page
+    if(!flag){
+      named['404'](req,res,config);
     }
   }
 }
