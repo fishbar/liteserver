@@ -30,7 +30,10 @@
     var controller = serv.loadController(path); // 从path路径加载控制器，path下所有的js文件，以及目录
     serv.router({
       '/index' : controller.index,
-      '/favicon' : serv.favicon(icopath)
+      '/favicon' : serv.favicon(icopath),
+      '/custom':function(req,res,cfg){
+        // 快速定义一枚controller 
+      }
     }).view({
       base:tplpath, // 模板的路径， 模板引擎目前只支持 liteview，后续加入其他模板引擎的接入
       debug:debug, // true or false 
