@@ -145,7 +145,7 @@ Server.prototype = {
       // remove end / from router path
       if(n.match(/\/$/)) n = n.replace(/\/$/,''); 
       obj[i] = [
-        new RegExp('^'+n+'\\b'),
+        n ? new RegExp('^'+n+'\\b') : /^\/$/,
         obj[i]
       ];
     }
