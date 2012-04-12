@@ -35,36 +35,47 @@ HTTP.IncomingMessage.prototype.getRouter = function(){
   var query = this.__querypath;
   if(query.action) return query;
   var arr = query.split('/');
-  var ctrl = arr[0];
-  var action = arr[1];
-  arr.shift();
-  arr.shift();
+  var ctrl = arr[1];
+  var action = arr[2];
   this.__querypath = {
     controller: ctrl,
     action : action,
-    param : arr
+    param : arr.slice(3)
   };
   return this.__querypath;
 };
 HTTP.IncomingMessage.prototype.getCookie = function(){
 
 };
-HTTP.IncomingMessage.prototype.getPost = function(cb){
+HTTP.IncomingMessage.prototype.getPost = function(cb,noparse){
   var len = this.headers['content-length'];
+  var post_buf,offset;
   if(len === undefined){
-    log.error('req.getPost()  do not support post in chunk!');
-    return;
+    var tmp;
+    //log.error('req.getPost()  do not support post in chunk!');
+    this.on('data',function(chunk){
+      if(post_buf){
+        len = post_buf.length + chunk.length;
+        tmp = new Buffer(len);
+        post_buf.copy(tmp,0,0,post_buf.length);
+        chunk.copy(tmp,post_buf.length,0,chunk.length);
+        post_buf = tmp;
+      }else{
+        post_buf = chunk;
+      }
+    });
+  }else{
+    post_buf = new Buffer(parseInt(len));
+    offset = 0;
+    this.on('data',function(chunk){
+      chunk.copy(post_buf,offset,0,chunk.length);
+      offset += chunk.length;
+    });
   }
-  var post_buf = new Buffer(parseInt(len));
-  var offset = 0;
-  this.on('data',function(chunk){
-    chunk.copy(post_buf,offset,0,chunk.length);
-    offset += chunk.length;
-  });
   var self = this;
   this.on('end',function(){
     post_buf = post_buf.toString();
-    post_buf = QS.parse(post_buf);
+    if(!noparse)post_buf = QS.parse(post_buf);
     if(cb)
       cb(post_buf);
     else

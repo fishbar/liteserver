@@ -74,12 +74,12 @@
     
     req.getPost(function(post){   // 获取简单post的数据，回调函数的形式
       console.log(post);
-    });
+    },noparse);
     
-    req.on('post',function(post){     // 获取简单post的数据，事件形式
+    req.on('post',function(post){  // 获取简单post的数据，事件形式
       console.log(post);
     });
-    req.getPost();
+    req.getPost(null,noparse);      // noparse为bool值,true时不对post数据做解析(不尝试解析成key=vaue)
     
     /** 通过multipart/form-data提交的数据，通常为上传文件等等,用法和普通的post相同，方法名如下 **/
     req.getMultiPartPost(function(post){});
