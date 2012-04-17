@@ -50,10 +50,10 @@
     {
       root: string 服务所在的路径 ，加载控制器、模板等等，都依赖此路径
       port: string 服务端口，目前只支持单个端口的绑定。多端口暂不考虑
-      errlog: path 错误日志保存地址，不提供将绑定到process.stderr
-      infolog: path 一般日志保存地址，不提供将默认和errlog同文件，如果errlog也是空，则绑定到process.stdout
-      loglevel: object {debug:bool,trace:bool,info:bool,warn:bool,error:bool} 日志记录开关，可设定哪些日志输出，总共5个级别
-      tpl: path 模板存放地址，相对于root的地址，注意path最前面不为"/"开头
+      errLog: path 错误日志保存地址，不提供将绑定到process.stderr
+      infoLog: path 一般日志保存地址，不提供将默认和errlog同文件，如果errlog也是空，则绑定到process.stdout
+      logLevel: object {debug:bool,trace:bool,info:bool,warn:bool,error:bool} 日志记录开关，可设定哪些日志输出，总共5个级别
+      tpl: path 模板存放地址，相对于root的地址，注意path "/"开头,表示绝对地址
       debug: bool 是否调试状态
     }
 
