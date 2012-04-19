@@ -1,7 +1,12 @@
-var LS = require('./index');
+var jsc = require('jscoverage');
+require = jsc.require(module);
+var LS = require('./index',true);
 var http = require('http');
 var expect = require('expect.js');
 
+process.on('exit',jsc.coverage);
+
+// case start 
 var config = {
   port:54321,
   root:__dirname
