@@ -3,10 +3,14 @@ var Path = require('path');
 var QS = require('querystring');
 var Fs = require('fs');
 var view = require('liteview');
-var Log = require('./log');
-// global Log
-log = Log.create({info:true},{});
-
+var llog = require('./log');
+var log = llog.create({},{});
+// global Log Object, injuct
+Log = {
+  get:function(){
+    return llog.create({},{});
+  }
+};
 /***********************
   extends http.response 
 ************************/
@@ -101,7 +105,7 @@ HTTP.IncomingMessage.prototype.getQuery = function(){
   }
   **/
 function Server(cfg){
-  this.cfg = cfg;
+  this.cfg = this.prepareCfg(cfg);
   this.root = cfg.root;
   this.routermap = null;
   this.serv = null;
@@ -112,6 +116,18 @@ function Server(cfg){
   }
 }
 Server.prototype = {
+  prepareCfg:function(cfg){
+    if( ! /^\//.test(cfg.tpl) ){
+      cfg.tpl = Path.join(cfg.root , cfg.tpl);
+    }
+    if( ! /^\//.test(cfg.errllog) ){
+      cfg.errllog = Path.join(cfg.root , cfg.errLog);
+    }
+    if( ! /^\//.test(cfg.infollog) ){
+      cfg.infollog = Path.join(cfg.root , cfg.infoLog);
+    }
+    return cfg;
+  },
   view:function(cfg){
     if(cfg.tpl){
       view.init(cfg.tpl);
@@ -125,11 +141,21 @@ Server.prototype = {
     return this;
   },
   /** 更换 veiw 引擎 **/
-  serView:function(v){
+  setView:function(v){
     if(!v.render || v.render.length < 2){
       throw new Error('setView(v), view must implement view.render(tpl,obj)!');
     }
     view = v;
+  },
+  setLog:function(l,servLog){
+    if(!l.get){
+      throw new Error('setLog(log,servLog), log must implement Log.get("module")!');
+    }
+    if(!servLog){
+      throw new Error('setLog(log,servLog), servLog need , serverlog will write to this log_group!');
+    }
+    log = l.get(servLog)
+    Log = l;
   },
   /**
     init router info
@@ -205,7 +231,7 @@ Server.prototype = {
   },
   favicon:function(path){
     var p = Path.join(this.root,path);
-    var ico
+    var ico;
     try{
       ico = Fs.readFileSync(p);
     }catch(e){
@@ -233,23 +259,29 @@ function createServerHandler(router,config){
       req.__querystr = url.substr(hasQuery+1);
       url = url.substr(0,hasQuery);
     }
-    for(var i in matches){
-      if(matches[i][0].test(url)){
-        req.__querypath = url;
-        matches[i][1](req,res,config);
-        flag = true;
-        break;
+    try{
+      for(var i in matches){
+        if(matches[i][0].test(url)){
+          req.__querypath = url;
+          matches[i][1](req,res,config);
+          flag = true;
+          break;
+        }
       }
-    }
-    // not found page
-    if(!flag){
-      named['404'](req,res,config);
+      // not found page
+      if(!flag){
+        named['404'](req,res,config);
+      }
+    }catch(e){
+      i = flag ? i : '404'
+      log.error( 'controller error:' + i );
+      log.error(e.stack);
     }
   }
 }
 
 exports.createServer = function(cfg){
-  log = Log.create(cfg.loglevel ? cfg.loglevel : {},cfg);
-  return new Server(cfg);
+  var server = new Server(cfg);
+  return server;
 };
 exports.Server = Server;

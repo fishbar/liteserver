@@ -42,7 +42,7 @@ var head = '\x1B[', foot = '\x1B[0m';
 function formatLog (type,msg,time) {
   var color = colors[type]+'m';
   var msg = util.format.apply(this,msg);
-  return ['[',time,'][', head, color, types[type], foot, '] ', msg, "\r\n"].join('');
+  return ['[',new Date().toJSON(),'][', head, color, types[type], foot, '] ', msg, "\r\n"].join('');
 }
 
 function Log(level, options) {
@@ -60,16 +60,16 @@ function Log(level, options) {
   this.mask = [_cfg.debug, _cfg.trace, _cfg.info, _cfg.warn, _cfg.error];
 
   options = options ? options : {};
-  this.errlog = options.errlog;
-  this.infolog = options.infolog;
-  if (this.errlog) {
-    this.streamErr = fs.createWriteStream(this.errlog, {
+  this.errLog = options.errLog;
+  this.infoLog = options.infoLog;
+  if (this.errLog) {
+    this.streamErr = fs.createWriteStream(this.errLog, {
       flags: 'a',
       encoding: null,
       mode: 0666
     });
-    if(this.errlog !== this.infolog)
-      this.streamInfo = fs.createWriteStream(this.infolog,{
+    if(this.errLog !== this.infoLog)
+      this.streamInfo = fs.createWriteStream(this.infoLog,{
         flags: 'a',
         encoding: null,
         mode: 0666
