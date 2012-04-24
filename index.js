@@ -147,6 +147,7 @@ Server.prototype = {
     }
     view = v;
   },
+  /** 更改log系统 **/
   setLog:function(l,servLog){
     if(!l.get){
       throw new Error('setLog(log,servLog), log must implement Log.get("module")!');
@@ -157,6 +158,13 @@ Server.prototype = {
     log = l.get(servLog)
     Log = l;
   },
+  /** 
+    更改 getRouter(fn) 方法
+      fn : function(url){return parsedObj}
+  **/
+  setRouter:function(fn){
+    HTTP.IncomingMessage.prototype.getRouter = fn;
+  }
   /**
     init router info
     router has two type
