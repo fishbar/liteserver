@@ -19,7 +19,7 @@ HTTP.ServerResponse.prototype.setCookie = function(name,value,options){
   
 };
 HTTP.ServerResponse.prototype.redirect = function(path){
-  this.status = 302;
+  this.statusCode = 302;
   this.setHeader('location','');
   this.end();
 };
@@ -69,7 +69,7 @@ HTTP.IncomingMessage.prototype.getPost = function(cb,noparse){
       }
     });
   }else{
-    post_buf = new Buffer(parseInt(len));
+    post_buf = new Buffer( parseInt(len,10) );
     offset = 0;
     this.on('data',function(chunk){
       chunk.copy(post_buf,offset,0,chunk.length);
@@ -107,12 +107,13 @@ HTTP.IncomingMessage.prototype.getQuery = function(){
 function Server(cfg){
   this.cfg = this.prepareCfg(cfg);
   this.root = cfg.root;
-  this.routermap = null;
+  this.routermap = {};
+  this.filtermap = function(){};
   this.serv = null;
   if(cfg.tpl){
     view.init(cfg.tpl);
   }else{
-    view.render = function(){return 'view is not inited ! please re-config the server .'};
+    view.render = function(){return 'view is not inited ! please re-config the server .';};
   }
 }
 Server.prototype = {
@@ -135,8 +136,8 @@ Server.prototype = {
     if(cfg.debug){
       view.debug(cfg.debug);
     }
-    if(cfg.const){
-      view.const(cfg.const);
+    if(cfg.constant){
+      view.constant(cfg.constant);
     }
     return this;
   },
@@ -146,6 +147,7 @@ Server.prototype = {
       throw new Error('setView(v), view must implement view.render(tpl,obj)!');
     }
     view = v;
+    return this;
   },
   /** 更改log系统 **/
   setLog:function(l,servLog){
@@ -155,8 +157,9 @@ Server.prototype = {
     if(!servLog){
       throw new Error('setLog(log,servLog), servLog need , serverlog will write to this log_group!');
     }
-    log = l.get(servLog)
+    log = l.get(servLog);
     Log = l;
+    return this;
   },
   /** 
     更改 getRouter(fn) 方法
@@ -164,7 +167,8 @@ Server.prototype = {
   **/
   setRouter:function(fn){
     HTTP.IncomingMessage.prototype.getRouter = fn;
-  }
+    return this;
+  },
   /**
     init router info
     router has two type
@@ -193,20 +197,29 @@ Server.prototype = {
     // add error page default
     if(!named['404']){
       named['404'] = function(req,res,cfg){
-        res.status = 404;
+        res.statusCode = 404;
         res.end('<h2>404,Page not found!</h2>');
       };
     }
     if(!named['500']){
       named['500'] = function(req,res,cfg){
-        res.status = 500;
+        res.statusCode = 500;
         res.end('<h2>500,Server error!</h2>');
-      }
+      };
     }
     this.routermap = {
       matches:matches,
       named:named
     };
+    return this;
+  },
+  /**
+   * addfilter for request
+   * @param  {Array} obj [description]
+   * @return {Object}     [description]
+   */
+  filter:function(func){
+    this.filtermap = func ? func : function(){};
     return this;
   },
   /**
@@ -224,18 +237,26 @@ Server.prototype = {
     }
     return res;
   },
+  /** 
+    start server
+    if cfg.port is not giving , server will not listen port
+  **/
   start:function(cb){
     var cfg = this.cfg;
-    this.serv = HTTP.createServer(createServerHandler(this.routermap,cfg));
-    this.serv.listen(cfg.port,cb);
+    this.serv = HTTP.createServer(createServerHandler(this.filtermap,this.routermap,cfg));
+    if(cfg.port)
+      this.serv.listen(cfg.port,cb);
     return this;
   },
+  getServer:function(){
+    return this.serv;
+  },
   /** internal handler **/
-  static:function(path){
+  staticFile:function(path){
     var p = Path.join(this.root,path);
     return function(req,res){
       //TODO static server
-    }
+    };
   },
   favicon:function(path){
     var p = Path.join(this.root,path);
@@ -246,21 +267,24 @@ Server.prototype = {
       
     }
     return function(req,res){
-      res.status = 200;
+      res.statusCode = 200;
       res.end('');
-    }
+    };
   }
 };
 
-function createServerHandler(router,config){
-  config = config ? config : {};
+function createServerHandler(filter,router,config){
   var matches = router.matches;
   var named = router.named;
+  config = config ? config : {};
+  
   return function(req,res){
     var url = req.url,
       hasQuery,
       flag = false,
-      res_header = {'x-power' : 'liteserver(node.js)'};
+      ft = true, //filter的返回值，true | false 退出用户请求 
+      res_header = {'x-power' : 'liteserver(node.js)'},
+      i;
     // remove query string
     hasQuery = url.indexOf('?'); 
     if( hasQuery !== -1 ){
@@ -268,9 +292,15 @@ function createServerHandler(router,config){
       url = url.substr(0,hasQuery);
     }
     try{
-      for(var i in matches){
+      req.__querypath = url;
+      // filter
+      ft = filter(req,res,config);
+      if(ft === false){
+        return; // if filter return  false , stop response user's request
+      }
+      // router
+      for( i in matches ){
         if(matches[i][0].test(url)){
-          req.__querypath = url;
           matches[i][1](req,res,config);
           flag = true;
           break;
@@ -281,11 +311,11 @@ function createServerHandler(router,config){
         named['404'](req,res,config);
       }
     }catch(e){
-      i = flag ? i : '404'
+      i = flag ? i : '404';
       log.error( 'controller error:' + i );
       log.error(e.stack);
     }
-  }
+  };
 }
 
 exports.createServer = function(cfg){
